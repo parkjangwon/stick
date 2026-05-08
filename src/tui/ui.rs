@@ -109,8 +109,6 @@ fn render_main_menu(frame: &mut Frame, area: Rect, app: &App) {
         "🚫 제외 설정".to_string(),
         "📋 로그 설정".to_string(),
         "⚙️  일반 설정".to_string(),
-        "💾 저장 및 종료".to_string(),
-        "❌ 취소".to_string(),
     ];
 
     let list_items: Vec<ListItem> = items
@@ -366,6 +364,7 @@ fn render_input_modal(frame: &mut Frame, app: &App) {
         Some(super::app::InputTarget::AddExcludeDir) => "제외 폴더명 입력:",
         Some(super::app::InputTarget::EditLogPath) => "로그 경로 입력:",
         Some(super::app::InputTarget::EditScanInterval) => "스캔 간격(초) 입력:",
+        Some(super::app::InputTarget::DirPickerSearch) => "폴더 실시간 검색:",
         None => "입력:",
     };
 

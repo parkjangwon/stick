@@ -65,9 +65,8 @@ ARCH="$(uname -m)"
 
 case "$OS" in
     Darwin) OS_LOWER="darwin" ;;
-    Linux)  OS_LOWER="linux"  ;;
     *)
-        echo -e "${RED}지원하지 않는 운영체제입니다: $OS${NC}"
+        echo -e "${RED}⚠️  stick은 macOS 전용 스마트 한글 정규화 도구입니다. (현재 OS: $OS)${NC}"
         exit 1
         ;;
 esac

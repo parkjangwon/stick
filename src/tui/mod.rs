@@ -78,8 +78,18 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 match key.code {
                     KeyCode::Enter => app.submit_input(),
                     KeyCode::Esc => app.cancel_input(),
-                    KeyCode::Char(c) => app.input_buffer.push(c),
-                    KeyCode::Backspace => { app.input_buffer.pop(); }
+                    KeyCode::Char(c) => {
+                        app.input_buffer.push(c);
+                        if app.input_target == Some(app::InputTarget::DirPickerSearch) {
+                            app.search_dir_picker();
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        app.input_buffer.pop();
+                        if app.input_target == Some(app::InputTarget::DirPickerSearch) {
+                            app.search_dir_picker();
+                        }
+                    }
                     _ => {}
                 }
                 continue;
@@ -110,6 +120,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                         }
                     }
                 }
+                KeyCode::Char('/') => {
+                    if app.current_screen == app::Screen::DirPicker {
+                        app.start_dir_picker_search();
+                    }
+                }
                 KeyCode::Char('q') => {
                     // 메인 메뉴에서만 종료 가능
                     if app.current_screen == app::Screen::Main {
@@ -118,7 +133,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                         app.go_back();
                     }
                 }
-                KeyCode::Esc => app.go_back(),
+                KeyCode::Esc => {
+                    if app.current_screen == app::Screen::Main {
+                        break;
+                    } else {
+                        app.go_back();
+                    }
+                }
                 KeyCode::Up | KeyCode::Char('k') => app.move_up(),
                 KeyCode::Down | KeyCode::Char('j') => app.move_down(),
                 KeyCode::Enter => {

@@ -84,6 +84,7 @@ pub enum InputTarget {
     AddExcludeDir,
     EditLogPath,
     EditScanInterval,
+    DirPickerSearch,
 }
 
 /// TUI 앱 전체 상태
@@ -121,8 +122,8 @@ impl App {
             input_mode: false,
             input_buffer: String::new(),
             input_target: None,
-            should_save: false,
-            status_message: "[↑↓] 이동  [Enter] 선택  [q] 나가기  [s] 저장".to_string(),
+            should_save: true, // 이제 기본적으로 항상 저장하고 나갑니다.
+            status_message: "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string(),
             confirm_delete: false,
             delete_target_index: None,
             dir_picker: None,
@@ -132,7 +133,7 @@ impl App {
     /// 현재 화면의 메뉴 항목 수
     pub fn menu_len(&self) -> usize {
         match self.current_screen {
-            Screen::Main => 6,
+            Screen::Main => 4, // 저장/취소 버튼 제거로 4개로 축소
             Screen::WatchPaths => self.config.watch_paths.len(),
             Screen::ExcludeSettings => 6,
             Screen::ExcludeExtensions => self.config.exclude_extensions.len(),
@@ -208,14 +209,6 @@ impl App {
                 self.current_screen = Screen::GeneralSettings;
                 self.selected_index = 0;
             }
-            4 => {
-                // 저장 및 종료
-                self.should_save = true;
-            }
-            5 => {
-                // 취소 (저장 안 함)
-                self.should_save = false;
-            }
             _ => {}
         }
     }
@@ -284,7 +277,7 @@ impl App {
             Screen::WatchPaths => {
                 self.current_screen = Screen::DirPicker;
                 self.dir_picker = Some(DirPickerState::new());
-                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스 이동".to_string();
+                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
             }
             Screen::ExcludeExtensions => {
                 self.start_input(InputTarget::AddExcludeExtension, ".");
@@ -384,6 +377,10 @@ impl App {
                     self.status_message = "⚠️  숫자를 입력해주세요.".to_string();
                 }
             }
+            Some(InputTarget::DirPickerSearch) => {
+                // 검색 종료 시 현재 위치 그대로 유지
+                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
+            }
             None => {}
         }
 
@@ -394,11 +391,16 @@ impl App {
 
     /// 텍스트 입력 취소 (Esc)
     pub fn cancel_input(&mut self) {
+        let was_search = self.input_target == Some(InputTarget::DirPickerSearch);
         self.input_mode = false;
         self.input_buffer.clear();
         self.input_target = None;
-        self.status_message =
-            "[↑↓] 이동  [Enter] 선택  [q] 나가기  [s] 저장".to_string();
+        if was_search {
+            self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
+        } else {
+            self.status_message =
+                "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string();
+        }
     }
 
     /// 토글 (Space)
@@ -429,7 +431,7 @@ impl App {
             }
         }
         self.status_message =
-            "[↑↓] 이동  [Enter] 선택  [q] 나가기  [s] 저장".to_string();
+            "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string();
     }
 
     /// DirPicker 공간/토글 처리
@@ -492,5 +494,33 @@ impl App {
             self.current_screen = Screen::WatchPaths;
             self.selected_index = 0;
         }
+    }
+
+    /// DirPicker 실시간 검색 및 커서 이동
+    pub fn search_dir_picker(&mut self) {
+        let query = self.input_buffer.to_lowercase();
+        if query.is_empty() {
+            return;
+        }
+
+        if let Some(dp) = &mut self.dir_picker {
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if file_name.to_lowercase().contains(&query) {
+                        dp.selected_index = idx;
+                        dp.list_state.select(Some(idx));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// DirPicker 검색 시작
+    pub fn start_dir_picker_search(&mut self) {
+        self.input_mode = true;
+        self.input_buffer.clear();
+        self.input_target = Some(InputTarget::DirPickerSearch);
+        self.status_message = "🔍 검색(폴더명 실시간 일치 이동) 입력:".to_string();
     }
 }
