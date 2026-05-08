@@ -35,13 +35,13 @@
 (Rust가 설치되어 있지 않다면 자동으로 설치를 도와줍니다.)
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh)
+bash <(curl -sL https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh)
 ```
 
 > **완전 삭제가 필요하신가요?**
 > 바이너리, 데몬 서비스, 설정 및 로그 파일까지 모두 깨끗하게 제거합니다.
 > ```bash
-> bash <(curl -s https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh) --remove
+> bash <(curl -sL https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh) --remove
 > ```
 
 ---
