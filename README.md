@@ -2,13 +2,11 @@
   <h1>✨ stick ✨</h1>
   <p><strong>macOS 전용 한글 파일명 NFC 정규화 도구 🇰🇷</strong></p>
 
-<img width="1014" height="699" alt="macshot-clipboard-B21DB5AE-9DFF-4709-900C-CDDD71BB0F28" src="https://github.com/user-attachments/assets/6902a4b8-e3d2-4e2f-b886-002b90e4539b" />
-
-
   [![Rust](https://img.shields.io/badge/rust-v1.70%2B-orange.svg?logo=rust)](https://www.rust-lang.org/)
   [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+<img width="1014" height="699" alt="macshot-clipboard-B21DB5AE-9DFF-4709-900C-CDDD71BB0F28" src="https://github.com/user-attachments/assets/6902a4b8-e3d2-4e2f-b886-002b90e4539b" />
 </div>
 
 <br>
