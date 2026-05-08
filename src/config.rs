@@ -66,6 +66,9 @@ pub struct StickConfig {
 
     /// 스캔 실행 시 대화형 확인(Y/N) 여부
     pub confirm_before_scan: bool,
+
+    /// 로그 레벨 (info, debug 등)
+    pub log_level: String,
 }
 
 impl Default for StickConfig {
@@ -94,6 +97,7 @@ impl Default for StickConfig {
             log_path: default_log_path,
             scan_interval_seconds: DEFAULT_SCAN_INTERVAL_SECONDS,
             confirm_before_scan: true,
+            log_level: "info".to_string(),
         }
     }
 }

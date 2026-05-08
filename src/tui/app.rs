@@ -134,7 +134,7 @@ impl App {
             Screen::ExcludeSettings => 6,
             Screen::ExcludeExtensions => self.config.exclude_extensions.len(),
             Screen::ExcludeDirs => self.config.exclude_directories.len(),
-            Screen::LogSettings => 2,
+            Screen::LogSettings => 3, // 경로, 레벨, 크기 확인
             Screen::GeneralSettings => 3,
             Screen::DirPicker => 0, // DirPicker는 별도 관리
         }
@@ -239,6 +239,14 @@ impl App {
         match self.selected_index {
             0 => {
                 self.start_input(InputTarget::EditLogPath, &self.config.log_path.clone());
+            }
+            1 => {
+                if self.config.log_level == "info" {
+                    self.config.log_level = "debug".to_string();
+                } else {
+                    self.config.log_level = "info".to_string();
+                }
+                self.status_message = format!("로그 레벨 변경: {}", self.config.log_level);
             }
             _ => {}
         }

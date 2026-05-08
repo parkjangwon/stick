@@ -70,7 +70,7 @@ fn main() -> Result<()> {
 
             // 로거 초기화 (콘솔 출력 포함)
             let log_dir = config.log_dir();
-            logger::init_logger(&log_dir, true)?;
+            logger::init_logger(&log_dir, true, &config.log_level)?;
 
             if config.watch_paths.is_empty() {
                 eprintln!("감시할 폴더가 없습니다.");
@@ -186,9 +186,9 @@ fn main() -> Result<()> {
             let log_dir = config.log_dir();
 
             // 데몬 모드 → 콘솔 출력 없이 파일만 기록
-            logger::init_logger(&log_dir, false)?;
+            logger::init_logger(&log_dir, false, &config.log_level)?;
 
-            tracing::info!("stick 감시 데몬 시작");
+            tracing::debug!("stick 감시 데몬 시작");
             watcher::run_watch_loop(&config)?;
         }
     }

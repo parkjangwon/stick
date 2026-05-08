@@ -12,6 +12,20 @@ use super::app::{App, Screen};
 
 /// 메인 렌더링 함수 - 현재 화면에 맞는 UI 그리기
 pub fn render(frame: &mut Frame, app: &App) {
+    // 배경을 깔끔하게 지웁니다
+    frame.render_widget(Clear, frame.area());
+
+    // 미니멀한 중앙 레이아웃 계산 (최대 너비 70, 최대 높이 24 제한)
+    let term_area = frame.area();
+    let width = std::cmp::min(70, term_area.width);
+    let height = std::cmp::min(24, term_area.height);
+    
+    let x = term_area.x + (term_area.width.saturating_sub(width)) / 2;
+    let y = term_area.y + (term_area.height.saturating_sub(height)) / 2;
+    
+    let app_area = Rect::new(x, y, width, height);
+
+    // 팝업 창처럼 보이게 하기 위해 배경색 설정 가능하지만, 미니멀을 위해 패스
     // 전체 레이아웃: 헤더 + 콘텐츠 + 상태바
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -20,7 +34,7 @@ pub fn render(frame: &mut Frame, app: &App) {
             Constraint::Min(10),   // 콘텐츠
             Constraint::Length(3), // 상태바
         ])
-        .split(frame.area());
+        .split(app_area);
 
     // 헤더
     render_header(frame, chunks[0], app);
@@ -255,6 +269,7 @@ fn render_list_editor(
 fn render_log_settings(frame: &mut Frame, area: Rect, app: &App) {
     let items = vec![
         format!("📂 로그 경로: {}", app.config.log_path),
+        format!("🎚️  로그 레벨: {}", app.config.log_level),
         "📊 로그 디렉토리 크기 확인".to_string(),
     ];
 

@@ -8,7 +8,7 @@ use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watche
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
-use tracing::{error, info, warn};
+use tracing::{debug, error, warn};
 
 use crate::config::StickConfig;
 use crate::scanner;
@@ -19,9 +19,9 @@ use crate::scanner;
 /// 1. notify로 파일 생성/이름변경 이벤트를 실시간 감지
 /// 2. scan_interval_seconds마다 전체 스캔으로 놓친 이벤트 보완
 pub fn run_watch_loop(config: &StickConfig) -> Result<()> {
-    info!("🔍 stick 감시 모드 시작");
-    info!("감시 대상 폴더: {:?}", config.watch_paths);
-    info!(
+    debug!("🔍 stick 감시 모드 시작");
+    debug!("감시 대상 폴더: {:?}", config.watch_paths);
+    debug!(
         "전체 스캔 간격: {}초",
         config.scan_interval_seconds
     );
@@ -49,11 +49,11 @@ pub fn run_watch_loop(config: &StickConfig) -> Result<()> {
         watcher
             .watch(path, watch_mode)
             .with_context(|| format!("감시 등록 실패: {}", watch_path))?;
-        info!("📂 감시 등록: {}", watch_path);
+        debug!("📂 감시 등록: {}", watch_path);
     }
 
     // 시작 시 1회 전체 스캔 수행
-    info!("🔄 초기 전체 스캔 시작...");
+    debug!("🔄 초기 전체 스캔 시작...");
     run_full_scan(config);
 
     // 이벤트 루프 (타임아웃 기반 하이브리드)
@@ -70,7 +70,7 @@ pub fn run_watch_loop(config: &StickConfig) -> Result<()> {
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 // 주기적 전체 스캔 (놓친 이벤트 보완)
-                info!("🔄 주기적 전체 스캔 실행...");
+                debug!("🔄 주기적 전체 스캔 실행...");
                 run_full_scan(config);
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => {
@@ -105,7 +105,7 @@ fn handle_fs_event(event: &Event, config: &StickConfig) {
 
         match scanner::normalize_single_path(path, config) {
             Ok(Some(entry)) => {
-                info!(
+                debug!(
                     "[실시간] {} → {} (NFD→NFC)",
                     entry.original_name, entry.new_name
                 );
@@ -130,7 +130,7 @@ fn run_full_scan(config: &StickConfig) {
         match scanner::scan_directory(path, config, false) {
             Ok(result) => {
                 if !result.renamed.is_empty() {
-                    info!(
+                    debug!(
                         "[전체스캔] {} - 변환 {}건",
                         watch_path,
                         result.renamed.len()

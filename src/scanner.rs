@@ -300,7 +300,7 @@ pub fn scan_directory(path: &Path, config: &StickConfig, dry_run: bool) -> Resul
         }
     }
 
-    info!("{}", result.summary());
+    debug!("{}", result.summary());
     Ok(result)
 }
 
