@@ -267,7 +267,7 @@ fn render_list_editor(
 fn render_log_settings(frame: &mut Frame, area: Rect, app: &App) {
     let items = vec![
         format!("📂 로그 경로: {}", app.config.log_path),
-        format!("🎚️  로그 레벨: {}", app.config.log_level),
+        format!("🎚️ 로그 레벨: {}", app.config.log_level),
         "📊 로그 디렉토리 크기 확인".to_string(),
     ];
 
@@ -305,7 +305,7 @@ fn render_general_settings(frame: &mut Frame, area: Rect, app: &App) {
             toggle(app.config.recursive)
         ),
         format!(
-            "⏱️  감시 스캔 간격: {}초",
+            "⏱️ 감시 스캔 간격: {}초",
             app.config.scan_interval_seconds
         ),
         format!(
@@ -376,7 +376,7 @@ fn render_input_modal(frame: &mut Frame, app: &App) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" ✏️  입력 [Enter]확인 [Esc]취소 ")
+                .title(" ✏️ 입력 [Enter]확인 [Esc]취소 ")
                 .border_style(Style::default().fg(Color::Cyan)),
         );
 
@@ -395,7 +395,7 @@ fn render_confirm_modal(frame: &mut Frame) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" ⚠️  삭제 확인 ")
+                .title(" ⚠️ 삭제 확인 ")
                 .border_style(Style::default().fg(Color::Red)),
         );
 
