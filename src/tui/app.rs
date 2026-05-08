@@ -277,7 +277,7 @@ impl App {
             Screen::WatchPaths => {
                 self.current_screen = Screen::DirPicker;
                 self.dir_picker = Some(DirPickerState::new());
-                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
+                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
             }
             Screen::ExcludeExtensions => {
                 self.start_input(InputTarget::AddExcludeExtension, ".");
@@ -379,7 +379,7 @@ impl App {
             }
             Some(InputTarget::DirPickerSearch) => {
                 // 검색 종료 시 현재 위치 그대로 유지
-                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
+                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
             }
             None => {}
         }
@@ -396,7 +396,7 @@ impl App {
         self.input_buffer.clear();
         self.input_target = None;
         if was_search {
-            self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스  [/] 검색".to_string();
+            self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
         } else {
             self.status_message =
                 "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string();

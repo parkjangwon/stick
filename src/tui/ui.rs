@@ -86,7 +86,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Screen::ExcludeExtensions => " 📄 제외 확장자 ",
         Screen::ExcludeDirs => " 📁 제외 폴더 ",
         Screen::LogSettings => " 📋 로그 설정 ",
-        Screen::GeneralSettings => " ⚙️  일반 설정 ",
+        Screen::GeneralSettings => " ⚙️ 일반 설정 ",
         Screen::DirPicker => " 🔍 폴더 탐색기 ",
     };
 
@@ -108,7 +108,7 @@ fn render_main_menu(frame: &mut Frame, area: Rect, app: &App) {
         format!("📂 감시 폴더 관리 ({}개)", app.config.watch_paths.len()),
         "🚫 제외 설정".to_string(),
         "📋 로그 설정".to_string(),
-        "⚙️  일반 설정".to_string(),
+        "⚙️ 일반 설정".to_string(),
     ];
 
     let list_items: Vec<ListItem> = items
@@ -340,17 +340,8 @@ fn render_general_settings(frame: &mut Frame, area: Rect, app: &App) {
 
 /// 상태바 렌더링
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
-    let (text, style) = if app.input_target == Some(super::app::InputTarget::DirPickerSearch) {
-        (
-            format!("🔍 폴더 검색(실시간 이동): {}▊  [Enter]확인 [Esc]취소", app.input_buffer),
-            Style::default().fg(Color::Yellow).bold()
-        )
-    } else {
-        (app.status_message.clone(), Style::default().fg(Color::Green))
-    };
-
-    let status = Paragraph::new(text)
-        .style(style)
+    let status = Paragraph::new(app.status_message.as_str())
+        .style(Style::default().fg(Color::Green))
         .alignment(Alignment::Center)
         .block(
             Block::default()
