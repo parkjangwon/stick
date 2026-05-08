@@ -74,6 +74,21 @@ fn same_inode(path_a: &Path, path_b: &Path) -> bool {
     meta_a.dev() == meta_b.dev() && meta_a.ino() == meta_b.ino()
 }
 
+/// 디스크에 저장된 실제 파일명을 반환합니다.
+/// FSEvents는 NFC 파일이라도 NFD 경로로 이벤트를 발생시킬 수 있으므로, inode 비교를 통해 실제 이름을 찾습니다.
+#[cfg(unix)]
+fn get_real_filename(path: &Path) -> Option<String> {
+    let parent = path.parent()?;
+    if let Ok(entries) = std::fs::read_dir(parent) {
+        for entry in entries.flatten() {
+            if same_inode(path, &entry.path()) {
+                return entry.file_name().into_string().ok();
+            }
+        }
+    }
+    None
+}
+
 // ── 핵심 변환 함수 ───────────────────────────────────────────────────────
 
 /// 문자열이 NFD 형태인지 확인
@@ -290,11 +305,30 @@ pub fn scan_directory(path: &Path, config: &StickConfig, dry_run: bool) -> Resul
 }
 
 /// 단일 파일 경로에 대해 NFC 변환 수행 (watcher에서 호출용)
-/// 제외 규칙을 적용한 뒤 변환합니다.
+/// FSEvents가 제공하는 경로는 항상 NFD 형태일 수 있으므로(실제 디스크가 NFC라도), 
+/// 실제 디스크의 파일명을 찾아 무한 루프를 방지합니다.
 pub fn normalize_single_path(path: &Path, config: &StickConfig) -> Result<Option<RenameEntry>> {
     if should_exclude(path, config) {
         return Ok(None);
     }
+    
+    #[cfg(unix)]
+    let real_name = get_real_filename(path);
+    #[cfg(not(unix))]
+    let real_name = path.file_name().and_then(|n| n.to_str()).map(|s| s.to_string());
+
+    if let Some(real_name_str) = real_name {
+        if !is_nfd_string(&real_name_str) {
+            // 실제 디스크의 이름이 이미 NFC라면 무시 (무한 루프 방지)
+            return Ok(None);
+        }
+        
+        // 실제 경로 기준으로 변환 수행
+        let real_path = path.with_file_name(&real_name_str);
+        return normalize_path(&real_path, false);
+    }
+
+    // fallback
     normalize_path(path, false)
 }
 
