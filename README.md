@@ -31,8 +31,7 @@
 
 ## 🛠️ 설치 방법
 
-가장 간편한 터미널 **원라인 설치**를 지원합니다.
-(사전 빌드된 바이너리를 자동으로 다운로드하므로 별도의 설치 과정이 필요 없습니다.)
+간편한 터미널 **원라인 설치**를 지원합니다.
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh)
