@@ -71,14 +71,22 @@ pub struct StickConfig {
     pub log_level: String,
 
     /// macOS 시스템 알림 활성화 여부 (기본값: false)
+    #[serde(default = "default_enable_notifications")]
     pub enable_notifications: bool,
 
     /// 실시간 파일 변경 감지 후 변환 트리거 대기 시간 (초, 기본값: 2)
+    #[serde(default = "default_debounce_delay_seconds")]
     pub debounce_delay_seconds: u64,
 
     /// 부팅 시 자동으로 백그라운드 데몬 실행 여부 (기본값: true)
+    #[serde(default = "default_auto_start")]
     pub auto_start: bool,
 }
+
+// ── Serde 역직렬화 기본값 매핑용 헬퍼 함수 ───────────────────────────────
+fn default_enable_notifications() -> bool { false }
+fn default_debounce_delay_seconds() -> u64 { 2 }
+fn default_auto_start() -> bool { true }
 
 impl Default for StickConfig {
     /// 안전한 기본 설정값 반환

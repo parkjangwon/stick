@@ -38,6 +38,9 @@ pub enum Commands {
     /// TUI 설정 메뉴 열기
     Config,
 
+    /// 현재 설치된 stick 버전 정보 출력
+    Version,
+
     /// 일회성 스캔 및 변환
     Scan {
         /// 실제 변경 없이 미리보기만 표시

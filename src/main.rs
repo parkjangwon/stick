@@ -65,6 +65,11 @@ fn main() -> Result<()> {
             tui::run_config_tui()?;
         }
 
+        // ── stick version ────────────────────────────────────────────
+        Commands::Version => {
+            println!("stick v{}", env!("CARGO_PKG_VERSION"));
+        }
+
         // ── stick scan ───────────────────────────────────────────────
         Commands::Scan { dry_run, yes } => {
             let config = StickConfig::load()?;

@@ -79,7 +79,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
 /// 헤더 렌더링
 fn render_header(frame: &mut Frame, area: Rect, app: &App) {
-    let title = match app.current_screen {
+    let base_title = match app.current_screen {
         Screen::Main => " 🔧 stick 설정 ",
         Screen::WatchPaths => " 📂 감시 폴더 관리 ",
         Screen::ExcludeSettings => " 🚫 제외 설정 ",
@@ -88,6 +88,12 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Screen::LogSettings => " 📋 로그 설정 ",
         Screen::GeneralSettings => " ⚙️ 일반 설정 ",
         Screen::DirPicker => " 🔍 폴더 탐색기 ",
+    };
+
+    let title = if app.current_screen == Screen::Main {
+        format!("{} (v{}) ", base_title.trim_end(), env!("CARGO_PKG_VERSION"))
+    } else {
+        base_title.to_string()
     };
 
     let header = Paragraph::new(title)
