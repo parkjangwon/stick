@@ -31,17 +31,18 @@
 
 ## 🛠️ 설치 방법
 
-Rust가 설치되어 있다면 아래 명령어로 즉시 빌드 및 설치가 가능합니다.
+가장 간편한 터미널 **원라인 설치**를 지원합니다.
+(Rust가 설치되어 있지 않다면 자동으로 설치를 도와줍니다.)
 
 ```bash
-# 레포지토리 클론
-git clone https://github.com/parkjangwon/stick.git
-cd stick
-
-# 릴리스 빌드 및 설치
-cargo build --release
-cargo install --path .
+bash <(curl -s https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh)
 ```
+
+> **완전 삭제가 필요하신가요?**
+> 바이너리, 데몬 서비스, 설정 및 로그 파일까지 모두 깨끗하게 제거합니다.
+> ```bash
+> bash <(curl -s https://raw.githubusercontent.com/parkjangwon/stick/master/install.sh) --remove
+> ```
 
 ---
 
