@@ -10,6 +10,7 @@ mod logger;
 mod scanner;
 mod tui;
 mod watcher;
+mod notifier;
 
 use anyhow::Result;
 use clap::Parser;

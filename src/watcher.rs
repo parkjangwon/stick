@@ -97,6 +97,15 @@ fn handle_fs_event(event: &Event, config: &StickConfig) {
         return;
     }
 
+    // 파일 복사/쓰기 작업의 완료를 보장하기 위해 설정된 디바운스 대기시간(기본 2초)만큼 대기합니다.
+    if config.debounce_delay_seconds > 0 {
+        debug!(
+            "⏱️ 파일 시스템 변화 감지: {}초 대기 (디바운스 디스패치)",
+            config.debounce_delay_seconds
+        );
+        std::thread::sleep(std::time::Duration::from_secs(config.debounce_delay_seconds));
+    }
+
     // 이벤트에 포함된 각 경로에 대해 NFC 변환 시도
     for path in &event.paths {
         if !path.exists() {
@@ -109,6 +118,13 @@ fn handle_fs_event(event: &Event, config: &StickConfig) {
                     "[실시간] {} → {} (NFD→NFC)",
                     entry.original_name, entry.new_name
                 );
+                // macOS 알림이 활성화된 경우 배너 알림 전송
+                if config.enable_notifications {
+                    crate::notifier::send_notification(
+                        "stick - 한글 정규화 완료",
+                        &format!("'{}' 파일명을 NFC로 정규화했습니다.", entry.new_name)
+                    );
+                }
             }
             Ok(None) => {
                 // 변환 불필요 또는 제외 대상 → 무시

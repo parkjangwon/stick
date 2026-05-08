@@ -69,6 +69,15 @@ pub struct StickConfig {
 
     /// 로그 레벨 (info, debug 등)
     pub log_level: String,
+
+    /// macOS 시스템 알림 활성화 여부 (기본값: false)
+    pub enable_notifications: bool,
+
+    /// 실시간 파일 변경 감지 후 변환 트리거 대기 시간 (초, 기본값: 2)
+    pub debounce_delay_seconds: u64,
+
+    /// 부팅 시 자동으로 백그라운드 데몬 실행 여부 (기본값: true)
+    pub auto_start: bool,
 }
 
 impl Default for StickConfig {
@@ -98,6 +107,9 @@ impl Default for StickConfig {
             scan_interval_seconds: DEFAULT_SCAN_INTERVAL_SECONDS,
             confirm_before_scan: true,
             log_level: "info".to_string(),
+            enable_notifications: false,
+            debounce_delay_seconds: 2,
+            auto_start: true,
         }
     }
 }

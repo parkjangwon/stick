@@ -84,6 +84,7 @@ pub enum InputTarget {
     AddExcludeDir,
     EditLogPath,
     EditScanInterval,
+    EditDebounceDelay,
     DirPickerSearch,
 }
 
@@ -139,7 +140,7 @@ impl App {
             Screen::ExcludeExtensions => self.config.exclude_extensions.len(),
             Screen::ExcludeDirs => self.config.exclude_directories.len(),
             Screen::LogSettings => 3, // 경로, 레벨, 크기 확인
-            Screen::GeneralSettings => 3,
+            Screen::GeneralSettings => 6,
             Screen::DirPicker => 0, // DirPicker는 별도 관리
         }
     }
@@ -258,7 +259,29 @@ impl App {
                 let current = self.config.scan_interval_seconds.to_string();
                 self.start_input(InputTarget::EditScanInterval, &current);
             }
-            2 => self.config.confirm_before_scan = !self.config.confirm_before_scan,
+            2 => {
+                let current = self.config.debounce_delay_seconds.to_string();
+                self.start_input(InputTarget::EditDebounceDelay, &current);
+            }
+            3 => self.config.enable_notifications = !self.config.enable_notifications,
+            4 => {
+                self.config.auto_start = !self.config.auto_start;
+                // macOS LaunchAgent와 투명하게 연동
+                if self.config.auto_start {
+                    if let Err(e) = crate::daemon::start_service(&self.config.log_path) {
+                        self.status_message = format!("⚠️ 자동 실행 등록 실패: {}", e);
+                    } else {
+                        self.status_message = "✅ 부팅 시 자동 실행 등록 완료!".to_string();
+                    }
+                } else {
+                    if let Err(e) = crate::daemon::stop_service() {
+                        self.status_message = format!("⚠️ 자동 실행 해제 실패: {}", e);
+                    } else {
+                        self.status_message = "🛑 부팅 시 자동 실행 해제 완료!".to_string();
+                    }
+                }
+            }
+            5 => self.config.confirm_before_scan = !self.config.confirm_before_scan,
             _ => {}
         }
     }
@@ -373,6 +396,14 @@ impl App {
                     } else {
                         self.status_message = "⚠️  1초 이상의 값을 입력해주세요.".to_string();
                     }
+                } else {
+                    self.status_message = "⚠️  숫자를 입력해주세요.".to_string();
+                }
+            }
+            Some(InputTarget::EditDebounceDelay) => {
+                if let Ok(seconds) = value.parse::<u64>() {
+                    self.config.debounce_delay_seconds = seconds;
+                    self.status_message = format!("변환 트리거 대기 시간 변경: {}초", seconds);
                 } else {
                     self.status_message = "⚠️  숫자를 입력해주세요.".to_string();
                 }

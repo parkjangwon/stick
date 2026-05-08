@@ -309,6 +309,18 @@ fn render_general_settings(frame: &mut Frame, area: Rect, app: &App) {
             app.config.scan_interval_seconds
         ),
         format!(
+            "⏱️ 변환 트리거 대기 시간: {}초",
+            app.config.debounce_delay_seconds
+        ),
+        format!(
+            "{} 🔔 macOS 시스템 알림",
+            toggle(app.config.enable_notifications)
+        ),
+        format!(
+            "{} 🍏 부팅 시 자동 실행 (LaunchAgent)",
+            toggle(app.config.auto_start)
+        ),
+        format!(
             "{} 스캔 시 대화형 확인",
             toggle(app.config.confirm_before_scan)
         ),
@@ -364,6 +376,7 @@ fn render_input_modal(frame: &mut Frame, app: &App) {
         Some(super::app::InputTarget::AddExcludeDir) => "제외 폴더명 입력:",
         Some(super::app::InputTarget::EditLogPath) => "로그 경로 입력:",
         Some(super::app::InputTarget::EditScanInterval) => "스캔 간격(초) 입력:",
+        Some(super::app::InputTarget::EditDebounceDelay) => "변환 트리거 대기 시간(초) 입력:",
         Some(super::app::InputTarget::DirPickerSearch) => "폴더 실시간 검색:",
         None => "입력:",
     };
