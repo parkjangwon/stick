@@ -46,6 +46,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         ),
         Screen::LogSettings => render_log_settings(frame, chunks[1], app),
         Screen::GeneralSettings => render_general_settings(frame, chunks[1], app),
+        Screen::DirPicker => render_dir_picker(frame, chunks[1], app),
     }
 
     // 상태바
@@ -72,6 +73,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Screen::ExcludeDirs => " 📁 제외 폴더 ",
         Screen::LogSettings => " 📋 로그 설정 ",
         Screen::GeneralSettings => " ⚙️  일반 설정 ",
+        Screen::DirPicker => " 🔍 폴더 선택기 ",
     };
 
     let header = Paragraph::new(title)
@@ -345,7 +347,6 @@ fn render_input_modal(frame: &mut Frame, app: &App) {
     frame.render_widget(Clear, area);
 
     let label = match &app.input_target {
-        Some(super::app::InputTarget::AddWatchPath) => "감시 폴더 경로 입력:",
         Some(super::app::InputTarget::AddExcludeExtension) => "제외 확장자 입력 (.ext):",
         Some(super::app::InputTarget::AddExcludeDir) => "제외 폴더명 입력:",
         Some(super::app::InputTarget::EditLogPath) => "로그 경로 입력:",
@@ -406,4 +407,93 @@ fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+/// 디렉토리 탐색기 렌더링
+fn render_dir_picker(frame: &mut Frame, area: Rect, app: &App) {
+    let dp = match &app.dir_picker {
+        Some(dp) => dp,
+        None => return,
+    };
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2), // 현재 경로
+            Constraint::Min(5),    // 리스트
+            Constraint::Length(3), // 버튼들
+        ])
+        .split(area);
+
+    // 1. 현재 경로
+    let current_path = Paragraph::new(format!(" 현재 위치: {}", dp.current_dir.display()))
+        .style(Style::default().fg(Color::Cyan).bold());
+    frame.render_widget(current_path, layout[0]);
+
+    // 2. 디렉토리 리스트
+    let items: Vec<ListItem> = dp.items.iter().enumerate().map(|(i, path)| {
+        let is_selected = dp.selected_index == i;
+        let is_checked = dp.selected_paths.contains(path);
+        
+        let prefix = if is_selected { "▶ " } else { "  " };
+        let check = if is_checked { "[x]" } else { "[ ]" };
+        
+        let name = if path.file_name().map(|n| n == "..").unwrap_or(false) || path == &dp.current_dir.parent().unwrap_or(std::path::Path::new("")) {
+            "📁 .. (상위 폴더로)".to_string()
+        } else {
+            format!("📁 {}", path.file_name().unwrap_or_default().to_string_lossy())
+        };
+
+        let style = if is_selected && dp.focus == super::app::DirPickerFocus::List {
+            Style::default().fg(Color::Yellow).bold()
+        } else if is_checked {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        ListItem::new(format!("{}{} {}", prefix, check, name)).style(style)
+    }).collect();
+
+    let list_style = if dp.focus == super::app::DirPickerFocus::List {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(list_style),
+    );
+    frame.render_widget(list, layout[1]);
+
+    // 3. 확인 / 취소 버튼
+    let btn_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(layout[2]);
+
+    let confirm_style = if dp.focus == super::app::DirPickerFocus::Confirm {
+        Style::default().fg(Color::Yellow).bold()
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let confirm_btn = Paragraph::new(format!("✅ 선택 완료 ({}개)", dp.selected_paths.len()))
+        .alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::ALL).border_style(confirm_style));
+    frame.render_widget(confirm_btn, btn_layout[0]);
+
+    let cancel_style = if dp.focus == super::app::DirPickerFocus::Cancel {
+        Style::default().fg(Color::Yellow).bold()
+    } else {
+        Style::default().fg(Color::White)
+    };
+    let cancel_btn = Paragraph::new("❌ 취소")
+        .alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::ALL).border_style(cancel_style));
+    frame.render_widget(cancel_btn, btn_layout[1]);
 }

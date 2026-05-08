@@ -15,12 +15,68 @@ pub enum Screen {
     ExcludeDirs,       // 제외 폴더 관리
     LogSettings,       // 로그 설정
     GeneralSettings,   // 일반 설정
+    DirPicker,         // 감시 폴더 탐색기
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DirPickerFocus {
+    List,
+    Confirm,
+    Cancel,
+}
+
+pub struct DirPickerState {
+    pub current_dir: std::path::PathBuf,
+    pub items: Vec<std::path::PathBuf>,
+    pub selected_index: usize,
+    pub focus: DirPickerFocus,
+    pub selected_paths: std::collections::HashSet<std::path::PathBuf>,
+}
+
+impl DirPickerState {
+    pub fn new() -> Self {
+        let current_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"));
+        let mut state = Self {
+            current_dir,
+            items: Vec::new(),
+            selected_index: 0,
+            focus: DirPickerFocus::List,
+            selected_paths: std::collections::HashSet::new(),
+        };
+        state.refresh_items();
+        state
+    }
+
+    pub fn refresh_items(&mut self) {
+        self.items.clear();
+        self.selected_index = 0;
+        
+        // 부모 디렉토리 가기
+        if let Some(parent) = self.current_dir.parent() {
+            self.items.push(parent.to_path_buf());
+        }
+        
+        if let Ok(entries) = std::fs::read_dir(&self.current_dir) {
+            let mut dirs: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.is_dir())
+                .collect();
+            
+            dirs.sort_by(|a, b| {
+                let a_name = a.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                let b_name = b.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+                a_name.cmp(&b_name)
+            });
+            
+            self.items.extend(dirs);
+        }
+    }
 }
 
 /// 텍스트 입력의 목적
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputTarget {
-    AddWatchPath,
     AddExcludeExtension,
     AddExcludeDir,
     EditLogPath,
@@ -49,6 +105,8 @@ pub struct App {
     pub confirm_delete: bool,
     /// 삭제 대상 인덱스
     pub delete_target_index: Option<usize>,
+    /// 디렉토리 탐색기 상태
+    pub dir_picker: Option<DirPickerState>,
 }
 
 impl App {
@@ -64,6 +122,7 @@ impl App {
             status_message: "[↑↓] 이동  [Enter] 선택  [q] 나가기  [s] 저장".to_string(),
             confirm_delete: false,
             delete_target_index: None,
+            dir_picker: None,
         }
     }
 
@@ -77,11 +136,21 @@ impl App {
             Screen::ExcludeDirs => self.config.exclude_directories.len(),
             Screen::LogSettings => 2,
             Screen::GeneralSettings => 3,
+            Screen::DirPicker => 0, // DirPicker는 별도 관리
         }
     }
 
     /// 커서 위로 이동
     pub fn move_up(&mut self) {
+        if self.current_screen == Screen::DirPicker {
+            if let Some(dp) = &mut self.dir_picker {
+                if dp.focus == DirPickerFocus::List && dp.selected_index > 0 {
+                    dp.selected_index -= 1;
+                }
+            }
+            return;
+        }
+
         if self.selected_index > 0 {
             self.selected_index -= 1;
         }
@@ -89,6 +158,15 @@ impl App {
 
     /// 커서 아래로 이동
     pub fn move_down(&mut self) {
+        if self.current_screen == Screen::DirPicker {
+            if let Some(dp) = &mut self.dir_picker {
+                if dp.focus == DirPickerFocus::List && dp.selected_index < dp.items.len().saturating_sub(1) {
+                    dp.selected_index += 1;
+                }
+            }
+            return;
+        }
+
         let max = self.menu_len();
         if max > 0 && self.selected_index < max - 1 {
             self.selected_index += 1;
@@ -191,7 +269,9 @@ impl App {
     pub fn handle_add(&mut self) {
         match self.current_screen {
             Screen::WatchPaths => {
-                self.start_input(InputTarget::AddWatchPath, "");
+                self.current_screen = Screen::DirPicker;
+                self.dir_picker = Some(DirPickerState::new());
+                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스 이동".to_string();
             }
             Screen::ExcludeExtensions => {
                 self.start_input(InputTarget::AddExcludeExtension, ".");
@@ -261,18 +341,6 @@ impl App {
         }
 
         match &self.input_target {
-            Some(InputTarget::AddWatchPath) => {
-                // 경로 존재 여부 확인
-                let path = shellexpand::tilde(&value).to_string();
-                if std::path::Path::new(&path).exists() {
-                    self.config.watch_paths.push(path.clone());
-                    self.status_message = format!("추가됨: {}", path);
-                } else {
-                    // 존재하지 않아도 일단 추가 (경고만)
-                    self.config.watch_paths.push(path.clone());
-                    self.status_message = format!("⚠️  경로가 존재하지 않지만 추가됨: {}", path);
-                }
-            }
             Some(InputTarget::AddExcludeExtension) => {
                 let ext = if value.starts_with('.') {
                     value.clone()
@@ -349,5 +417,67 @@ impl App {
         }
         self.status_message =
             "[↑↓] 이동  [Enter] 선택  [q] 나가기  [s] 저장".to_string();
+    }
+
+    /// DirPicker 공간/토글 처리
+    pub fn toggle_dir_picker_selection(&mut self) {
+        if let Some(dp) = &mut self.dir_picker {
+            if dp.focus == DirPickerFocus::List {
+                if let Some(path) = dp.items.get(dp.selected_index) {
+                    // ".."은 선택할 수 없음
+                    if path.file_name().map(|n| n == "..").unwrap_or(false) || path == &dp.current_dir.parent().unwrap_or(std::path::Path::new("")) {
+                        return;
+                    }
+                    if dp.selected_paths.contains(path) {
+                        dp.selected_paths.remove(path);
+                    } else {
+                        dp.selected_paths.insert(path.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    /// DirPicker 선택 (Enter) 처리
+    pub fn select_dir_picker(&mut self) {
+        let mut transition = None;
+
+        if let Some(dp) = &mut self.dir_picker {
+            match dp.focus {
+                DirPickerFocus::List => {
+                    if let Some(path) = dp.items.get(dp.selected_index).cloned() {
+                        dp.current_dir = path;
+                        dp.refresh_items();
+                    }
+                }
+                DirPickerFocus::Confirm => {
+                    transition = Some(true); // 확인
+                }
+                DirPickerFocus::Cancel => {
+                    transition = Some(false); // 취소
+                }
+            }
+        }
+
+        if let Some(confirm) = transition {
+            if confirm {
+                if let Some(dp) = self.dir_picker.take() {
+                    let mut added = 0;
+                    for path in dp.selected_paths {
+                        let path_str = path.to_string_lossy().to_string();
+                        if !self.config.watch_paths.contains(&path_str) {
+                            self.config.watch_paths.push(path_str);
+                            added += 1;
+                        }
+                    }
+                    self.status_message = format!("{}개의 감시 폴더가 추가되었습니다.", added);
+                }
+            } else {
+                self.dir_picker = None;
+                self.status_message = "폴더 추가가 취소되었습니다.".to_string();
+            }
+            self.current_screen = Screen::WatchPaths;
+            self.selected_index = 0;
+        }
     }
 }

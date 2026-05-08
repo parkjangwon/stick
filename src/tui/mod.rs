@@ -99,6 +99,17 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
 
             // 일반 네비게이션 모드
             match key.code {
+                KeyCode::Tab => {
+                    if app.current_screen == app::Screen::DirPicker {
+                        if let Some(dp) = &mut app.dir_picker {
+                            dp.focus = match dp.focus {
+                                app::DirPickerFocus::List => app::DirPickerFocus::Confirm,
+                                app::DirPickerFocus::Confirm => app::DirPickerFocus::Cancel,
+                                app::DirPickerFocus::Cancel => app::DirPickerFocus::List,
+                            };
+                        }
+                    }
+                }
                 KeyCode::Char('q') => {
                     // 메인 메뉴에서만 종료 가능
                     if app.current_screen == app::Screen::Main {
@@ -110,10 +121,22 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 KeyCode::Esc => app.go_back(),
                 KeyCode::Up | KeyCode::Char('k') => app.move_up(),
                 KeyCode::Down | KeyCode::Char('j') => app.move_down(),
-                KeyCode::Enter => app.select(),
+                KeyCode::Enter => {
+                    if app.current_screen == app::Screen::DirPicker {
+                        app.select_dir_picker();
+                    } else {
+                        app.select();
+                    }
+                }
                 KeyCode::Char('a') => app.handle_add(),
                 KeyCode::Char('d') => app.handle_delete(),
-                KeyCode::Char(' ') => app.toggle_current(),
+                KeyCode::Char(' ') => {
+                    if app.current_screen == app::Screen::DirPicker {
+                        app.toggle_dir_picker_selection();
+                    } else {
+                        app.toggle_current();
+                    }
+                }
                 KeyCode::Char('s') => {
                     // 어디서든 저장 가능
                     app.should_save = true;
