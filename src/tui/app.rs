@@ -31,6 +31,7 @@ pub struct DirPickerState {
     pub selected_index: usize,
     pub focus: DirPickerFocus,
     pub selected_paths: std::collections::HashSet<std::path::PathBuf>,
+    pub list_state: ratatui::widgets::ListState,
 }
 
 impl DirPickerState {
@@ -42,6 +43,7 @@ impl DirPickerState {
             selected_index: 0,
             focus: DirPickerFocus::List,
             selected_paths: std::collections::HashSet::new(),
+            list_state: ratatui::widgets::ListState::default(),
         };
         state.refresh_items();
         state
@@ -71,6 +73,7 @@ impl DirPickerState {
             
             self.items.extend(dirs);
         }
+        self.list_state.select(Some(0));
     }
 }
 
@@ -146,6 +149,7 @@ impl App {
             if let Some(dp) = &mut self.dir_picker {
                 if dp.focus == DirPickerFocus::List && dp.selected_index > 0 {
                     dp.selected_index -= 1;
+                    dp.list_state.select(Some(dp.selected_index));
                 }
             }
             return;
@@ -162,6 +166,7 @@ impl App {
             if let Some(dp) = &mut self.dir_picker {
                 if dp.focus == DirPickerFocus::List && dp.selected_index < dp.items.len().saturating_sub(1) {
                     dp.selected_index += 1;
+                    dp.list_state.select(Some(dp.selected_index));
                 }
             }
             return;

@@ -11,7 +11,7 @@ use ratatui::{
 use super::app::{App, Screen};
 
 /// 메인 렌더링 함수 - 현재 화면에 맞는 UI 그리기
-pub fn render(frame: &mut Frame, app: &App) {
+pub fn render(frame: &mut Frame, app: &mut App) {
     // 배경을 깔끔하게 지웁니다
     frame.render_widget(Clear, frame.area());
 
@@ -356,7 +356,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
 
 /// 텍스트 입력 모달 오버레이
 fn render_input_modal(frame: &mut Frame, app: &App) {
-    let area = centered_rect(60, 20, frame.area());
+    let area = centered_rect(50, 5, frame.area());
 
     // 배경 클리어
     frame.render_widget(Clear, area);
@@ -386,7 +386,7 @@ fn render_input_modal(frame: &mut Frame, app: &App) {
 
 /// 삭제 확인 모달
 fn render_confirm_modal(frame: &mut Frame) {
-    let area = centered_rect(40, 15, frame.area());
+    let area = centered_rect(40, 6, frame.area());
     frame.render_widget(Clear, area);
 
     let text = "정말 삭제하시겠습니까?\n\n  [y] 예  [n] 아니오";
@@ -403,30 +403,18 @@ fn render_confirm_modal(frame: &mut Frame) {
     frame.render_widget(confirm, area);
 }
 
-/// 화면 중앙에 위치한 Rect 계산 (모달용)
-fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
+/// 화면 중앙에 위치한 절대 크기의 Rect 계산 (모달용)
+fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
+    let w = std::cmp::min(width, area.width);
+    let h = std::cmp::min(height, area.height);
+    let x = area.x + (area.width.saturating_sub(w)) / 2;
+    let y = area.y + (area.height.saturating_sub(h)) / 2;
+    Rect::new(x, y, w, h)
 }
 
 /// 디렉토리 탐색기 렌더링
-fn render_dir_picker(frame: &mut Frame, area: Rect, app: &App) {
-    let dp = match &app.dir_picker {
+fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
+    let dp = match &mut app.dir_picker {
         Some(dp) => dp,
         None => return,
     };
@@ -481,7 +469,7 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &App) {
             .borders(Borders::ALL)
             .border_style(list_style),
     );
-    frame.render_widget(list, layout[1]);
+    frame.render_stateful_widget(list, layout[1], &mut dp.list_state);
 
     // 3. 확인 / 취소 버튼
     let btn_layout = Layout::default()
