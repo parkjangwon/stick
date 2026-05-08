@@ -496,7 +496,7 @@ impl App {
         }
     }
 
-    /// DirPicker 실시간 검색 및 커서 이동
+    /// DirPicker 실시간 검색 및 커서 이동 (우선순위: 완전 일치 -> 시작 일치 -> 포함 일치)
     pub fn search_dir_picker(&mut self) {
         let query = self.input_buffer.to_lowercase();
         if query.is_empty() {
@@ -504,12 +504,35 @@ impl App {
         }
 
         if let Some(dp) = &mut self.dir_picker {
+            // 1단계: 대소문자 무시 완전 일치 (예: "dev" 입력 시 "dev" 폴더 우선 이동)
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if file_name.to_lowercase() == query {
+                        dp.selected_index = idx;
+                        dp.list_state.select(Some(idx));
+                        return;
+                    }
+                }
+            }
+
+            // 2단계: 시작 단어 일치 (예: "dev" 입력 시 "dev-tools" 등)
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if file_name.to_lowercase().starts_with(&query) {
+                        dp.selected_index = idx;
+                        dp.list_state.select(Some(idx));
+                        return;
+                    }
+                }
+            }
+
+            // 3단계: 중간 포함 일치 (예: "dev" 입력 시 ".flutter-devtools" 등)
             for (idx, path) in dp.items.iter().enumerate() {
                 if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                     if file_name.to_lowercase().contains(&query) {
                         dp.selected_index = idx;
                         dp.list_state.select(Some(idx));
-                        break;
+                        return;
                     }
                 }
             }

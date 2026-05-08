@@ -67,7 +67,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     render_status_bar(frame, chunks[2], app);
 
     // 텍스트 입력 모달 (입력 모드일 때 오버레이)
-    if app.input_mode {
+    if app.input_mode && app.input_target != Some(super::app::InputTarget::DirPickerSearch) {
         render_input_modal(frame, app);
     }
 
@@ -340,8 +340,17 @@ fn render_general_settings(frame: &mut Frame, area: Rect, app: &App) {
 
 /// 상태바 렌더링
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
-    let status = Paragraph::new(app.status_message.as_str())
-        .style(Style::default().fg(Color::Green))
+    let (text, style) = if app.input_target == Some(super::app::InputTarget::DirPickerSearch) {
+        (
+            format!("🔍 폴더 검색(실시간 이동): {}▊  [Enter]확인 [Esc]취소", app.input_buffer),
+            Style::default().fg(Color::Yellow).bold()
+        )
+    } else {
+        (app.status_message.clone(), Style::default().fg(Color::Green))
+    };
+
+    let status = Paragraph::new(text)
+        .style(style)
         .alignment(Alignment::Center)
         .block(
             Block::default()
