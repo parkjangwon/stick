@@ -81,14 +81,20 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                     KeyCode::Char(c) => {
                         app.input_buffer.push(c);
                         if app.input_target == Some(app::InputTarget::DirPickerSearch) {
-                            app.search_dir_picker();
+                            app.search_dir_picker(true);
                         }
                     }
                     KeyCode::Backspace => {
                         app.input_buffer.pop();
                         if app.input_target == Some(app::InputTarget::DirPickerSearch) {
-                            app.search_dir_picker();
+                            app.search_dir_picker(true);
                         }
+                    }
+                    KeyCode::Down if app.input_target == Some(app::InputTarget::DirPickerSearch) => {
+                        app.search_dir_picker_next();
+                    }
+                    KeyCode::Up if app.input_target == Some(app::InputTarget::DirPickerSearch) => {
+                        app.search_dir_picker_prev();
                     }
                     _ => {}
                 }

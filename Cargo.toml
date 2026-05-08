@@ -1,6 +1,6 @@
 [package]
 name = "stick"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "macOS/Linux 한글 파일명 NFC 정규화 도구"
 authors = ["pjw"]

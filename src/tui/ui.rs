@@ -87,7 +87,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
         Screen::ExcludeDirs => " 📁 제외 폴더 ",
         Screen::LogSettings => " 📋 로그 설정 ",
         Screen::GeneralSettings => " ⚙️  일반 설정 ",
-        Screen::DirPicker => " 🔍 폴더 선택기 ",
+        Screen::DirPicker => " 🔍 폴더 탐색기 ",
     };
 
     let header = Paragraph::new(title)
@@ -422,6 +422,11 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
 
 /// 디렉토리 탐색기 렌더링
 fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
+    // 1. Rust 대여 검사 충돌 회피를 위해 app에 대한 불변 쿼리들을 가변 대여(dp) 전에 미리 가져옵니다.
+    let is_searching = app.input_target == Some(super::app::InputTarget::DirPickerSearch);
+    let matches = app.get_matching_indices();
+    let selected_index = app.dir_picker.as_ref().map(|dp| dp.selected_index).unwrap_or(0);
+
     let dp = match &mut app.dir_picker {
         Some(dp) => dp,
         None => return,
@@ -431,8 +436,9 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(2), // 현재 경로
-            Constraint::Min(5),    // 리스트
+            Constraint::Min(3),    // 리스트
             Constraint::Length(3), // 버튼들
+            Constraint::Length(3), // 검색 영역
         ])
         .split(area);
 
@@ -507,4 +513,33 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL).border_style(cancel_style));
     frame.render_widget(cancel_btn, btn_layout[1]);
+
+    // 4. 검색 영역 (버튼 바로 아래 항상 존재)
+    let search_border_style = if is_searching {
+        Style::default().fg(Color::Yellow).bold()
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let search_text = if is_searching {
+        if matches.is_empty() {
+            format!(" 🔍 검색어: {}▊ (일치하는 폴더가 없습니다)  [Esc]취소", app.input_buffer)
+        } else {
+            let current_pos = matches.iter().position(|&x| x == selected_index).map(|p| p + 1).unwrap_or(1);
+            format!(" 🔍 검색어: {}▊ ({}/{}개 매칭)  [↑/↓] 매칭 순환  [Enter]검색 완료  [Esc]취소", app.input_buffer, current_pos, matches.len())
+        }
+    } else {
+        " 🔍 [/] 키를 입력하여 실시간 폴더 탐색 검색 (완전 일치 우선)".to_string()
+    };
+
+    let search_block = Paragraph::new(search_text)
+        .alignment(Alignment::Left)
+        .style(if is_searching { Style::default().fg(Color::Yellow).bold() } else { Style::default().fg(Color::DarkGray) })
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" 검색 (Search) ")
+                .border_style(search_border_style),
+        );
+    frame.render_widget(search_block, layout[3]);
 }

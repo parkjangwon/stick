@@ -496,45 +496,100 @@ impl App {
         }
     }
 
-    /// DirPicker 실시간 검색 및 커서 이동 (우선순위: 완전 일치 -> 시작 일치 -> 포함 일치)
-    pub fn search_dir_picker(&mut self) {
+    /// DirPicker 실시간 검색 매칭되는 모든 항목들의 인덱스 수집 (완전 일치 -> 시작 일치 -> 포함 일치 순서)
+    pub fn get_matching_indices(&self) -> Vec<usize> {
         let query = self.input_buffer.to_lowercase();
         if query.is_empty() {
+            return Vec::new();
+        }
+
+        let mut matches = Vec::new();
+        if let Some(dp) = &self.dir_picker {
+            // 1단계: 완전 일치
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if file_name.to_lowercase() == query {
+                        matches.push(idx);
+                    }
+                }
+            }
+
+            // 2단계: 시작 단어 일치 (완전 일치는 제외)
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    let name_lower = file_name.to_lowercase();
+                    if name_lower.starts_with(&query) && name_lower != query {
+                        matches.push(idx);
+                    }
+                }
+            }
+
+            // 3단계: 중간 포함 일치 (시작 일치, 완전 일치는 제외)
+            for (idx, path) in dp.items.iter().enumerate() {
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    let name_lower = file_name.to_lowercase();
+                    if name_lower.contains(&query) && !name_lower.starts_with(&query) {
+                        matches.push(idx);
+                    }
+                }
+            }
+        }
+        matches
+    }
+
+    /// DirPicker 실시간 검색 및 첫 번째 일치 항목으로 이동
+    pub fn search_dir_picker(&mut self, _reset: bool) {
+        let matches = self.get_matching_indices();
+        if let Some(&first_match) = matches.first() {
+            if let Some(dp) = &mut self.dir_picker {
+                dp.selected_index = first_match;
+                dp.list_state.select(Some(first_match));
+            }
+        }
+    }
+
+    /// 검색 결과 다음 매칭되는 폴더로 이동 (순환 지원)
+    pub fn search_dir_picker_next(&mut self) {
+        let matches = self.get_matching_indices();
+        if matches.is_empty() {
             return;
         }
 
         if let Some(dp) = &mut self.dir_picker {
-            // 1단계: 대소문자 무시 완전 일치 (예: "dev" 입력 시 "dev" 폴더 우선 이동)
-            for (idx, path) in dp.items.iter().enumerate() {
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if file_name.to_lowercase() == query {
-                        dp.selected_index = idx;
-                        dp.list_state.select(Some(idx));
-                        return;
-                    }
-                }
+            let current = dp.selected_index;
+            if let Some(pos) = matches.iter().position(|&x| x == current) {
+                let next_pos = (pos + 1) % matches.len();
+                let next_idx = matches[next_pos];
+                dp.selected_index = next_idx;
+                dp.list_state.select(Some(next_idx));
+            } else {
+                // 현재 선택 위치가 매칭 목록에 없으면 첫 번째 매칭으로 점프
+                let next_idx = matches[0];
+                dp.selected_index = next_idx;
+                dp.list_state.select(Some(next_idx));
             }
+        }
+    }
 
-            // 2단계: 시작 단어 일치 (예: "dev" 입력 시 "dev-tools" 등)
-            for (idx, path) in dp.items.iter().enumerate() {
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if file_name.to_lowercase().starts_with(&query) {
-                        dp.selected_index = idx;
-                        dp.list_state.select(Some(idx));
-                        return;
-                    }
-                }
-            }
+    /// 검색 결과 이전 매칭되는 폴더로 이동 (순환 지원)
+    pub fn search_dir_picker_prev(&mut self) {
+        let matches = self.get_matching_indices();
+        if matches.is_empty() {
+            return;
+        }
 
-            // 3단계: 중간 포함 일치 (예: "dev" 입력 시 ".flutter-devtools" 등)
-            for (idx, path) in dp.items.iter().enumerate() {
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if file_name.to_lowercase().contains(&query) {
-                        dp.selected_index = idx;
-                        dp.list_state.select(Some(idx));
-                        return;
-                    }
-                }
+        if let Some(dp) = &mut self.dir_picker {
+            let current = dp.selected_index;
+            if let Some(pos) = matches.iter().position(|&x| x == current) {
+                let prev_pos = if pos == 0 { matches.len() - 1 } else { pos - 1 };
+                let prev_idx = matches[prev_pos];
+                dp.selected_index = prev_idx;
+                dp.list_state.select(Some(prev_idx));
+            } else {
+                // 현재 선택 위치가 매칭 목록에 없으면 마지막 매칭으로 점프
+                let prev_idx = matches[matches.len() - 1];
+                dp.selected_index = prev_idx;
+                dp.list_state.select(Some(prev_idx));
             }
         }
     }
@@ -544,6 +599,6 @@ impl App {
         self.input_mode = true;
         self.input_buffer.clear();
         self.input_target = Some(InputTarget::DirPickerSearch);
-        self.status_message = "🔍 검색(폴더명 실시간 일치 이동) 입력:".to_string();
+        self.status_message = "[↑/↓] 매칭 순환  [Enter] 검색 완료  [Esc] 취소".to_string();
     }
 }
