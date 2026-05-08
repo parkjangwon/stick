@@ -134,8 +134,6 @@ fn launchd_start(log_dir: &str) -> Result<()> {
         return Err(anyhow::anyhow!("launchctl load 실패: {}", stderr));
     }
 
-    println!("✅ stick 서비스가 시작되었습니다. (launchd)");
-    println!("   plist: {:?}", plist_path);
     Ok(())
 }
 
@@ -144,7 +142,6 @@ fn launchd_stop() -> Result<()> {
     let plist_path = launchd_plist_path()?;
 
     if !plist_path.exists() {
-        println!("⚠️  stick 서비스가 등록되어 있지 않습니다.");
         return Ok(());
     }
 
@@ -162,7 +159,6 @@ fn launchd_stop() -> Result<()> {
     fs::remove_file(&plist_path)
         .with_context(|| format!("plist 파일 삭제 실패: {:?}", plist_path))?;
 
-    println!("🛑 stick 서비스가 중지되었습니다.");
     Ok(())
 }
 
@@ -251,8 +247,6 @@ fn systemd_start() -> Result<()> {
         return Err(anyhow::anyhow!("서비스 활성화 실패: {}", stderr));
     }
 
-    println!("✅ stick 서비스가 시작되었습니다. (systemd)");
-    println!("   unit: {:?}", unit_path);
     Ok(())
 }
 
@@ -265,7 +259,7 @@ fn systemd_stop() -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        println!("⚠️  서비스 중지 실패: {}", stderr);
+        return Err(anyhow::anyhow!("서비스 중지 실패: {}", stderr));
     }
 
     // disable도 함께
@@ -283,7 +277,6 @@ fn systemd_stop() -> Result<()> {
         .args(["--user", "daemon-reload"])
         .output();
 
-    println!("🛑 stick 서비스가 중지되었습니다.");
     Ok(())
 }
 

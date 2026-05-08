@@ -9,9 +9,9 @@ use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode},
 };
-use ratatui::prelude::*;
+use ratatui::{prelude::*, TerminalOptions, Viewport};
 use std::io;
 
 use crate::config::StickConfig;
@@ -25,10 +25,16 @@ pub fn run_config_tui() -> Result<()> {
     // 터미널 raw 모드 진입
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    // 전체화면(AlternateScreen) 전환 없이 인라인으로 렌더링
+    execute!(stdout, EnableMouseCapture)?;
 
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::with_options(
+        backend,
+        TerminalOptions {
+            viewport: Viewport::Inline(20),
+        },
+    )?;
 
     // TUI 앱 실행
     let mut app = App::new(config);
@@ -38,10 +44,10 @@ pub fn run_config_tui() -> Result<()> {
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
-        LeaveAlternateScreen,
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
+    println!();
 
     // 실행 결과 처리
     if let Err(err) = result {
@@ -106,7 +112,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 match key.code {
                     KeyCode::Char('y') | KeyCode::Char('Y') => app.confirm_delete_yes(),
                     KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
-                        app.confirm_delete = false;
+                        app.confirm_delete_cancel();
                     }
                     _ => {}
                 }

@@ -62,3 +62,59 @@ pub fn init_logger(log_dir: &Path, console_output: bool, level: &str) -> Result<
 
     Ok(())
 }
+
+/// 로그 디렉토리의 총 크기를 바이트 단위로 계산합니다.
+pub fn get_dir_size(path: &Path) -> Result<u64> {
+    let mut size = 0;
+    if path.exists() && path.is_dir() {
+        for entry in walkdir::WalkDir::new(path).min_depth(1) {
+            let entry = entry?;
+            if entry.file_type().is_file() {
+                size += entry.metadata()?.len();
+            }
+        }
+    }
+    Ok(size)
+}
+
+/// 오늘 날짜 이전의 .log 파일들을 찾아 gzip으로 압축하고 원본을 삭제합니다.
+pub fn compress_old_logs(log_dir: &Path) -> Result<()> {
+    if !log_dir.exists() {
+        return Ok(());
+    }
+
+    let today = Local::now().format("%Y-%m-%d").to_string();
+    let today_log = format!("stick.log.{}", today);
+
+    for entry in fs::read_dir(log_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        if !path.is_file() {
+            continue;
+        }
+
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            // "stick.log.YYYY-MM-DD" 형식이면서 오늘의 로그가 아닌 경우
+            if name.starts_with("stick.log.") && !name.ends_with(".gz") && name != "stick.log" && name != today_log {
+                let out_path = format!("{}.gz", path.display());
+                
+                // 파일 압축 진행
+                if let Ok(file_in) = fs::File::open(&path) {
+                    if let Ok(file_out) = fs::File::create(&out_path) {
+                        let mut input = std::io::BufReader::new(file_in);
+                        let mut output = flate2::write::GzEncoder::new(file_out, flate2::Compression::default());
+                        
+                        if std::io::copy(&mut input, &mut output).is_ok() && output.finish().is_ok() {
+                            // 압축 성공 시 원본 삭제
+                            let _ = fs::remove_file(&path);
+                            tracing::debug!("로그 압축 완료: {} -> {}", name, out_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}

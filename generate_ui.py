@@ -1,4 +1,6 @@
-// ============================================================================
+import sys
+
+new_ui = """// ============================================================================
 // stick - TUI 화면 렌더링 모듈
 // ratatui 위젯으로 모던한 터미널 인터페이스 구성
 // ============================================================================
@@ -15,64 +17,55 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     frame.render_widget(Clear, frame.area());
 
     let term_area = frame.area();
-    // 가로 최대 너비 제한을 더 타이트하게 줄여서 미니멀한 느낌 강조
-    let width = std::cmp::min(60, term_area.width);
-    let height = term_area.height;
+    let width = std::cmp::min(76, term_area.width);
+    let height = std::cmp::min(26, term_area.height);
     
-    let app_area = Rect::new(term_area.x, term_area.y, width, height);
+    let x = term_area.x + (term_area.width.saturating_sub(width)) / 2;
+    let y = term_area.y + (term_area.height.saturating_sub(height)) / 2;
+    
+    let app_area = Rect::new(x, y, width, height);
 
-    // 전체 레이아웃: 헤더 + 여백 + 콘텐츠 (상단 여백 제거)
+    // 전체 레이아웃: 여백 + 헤더 + 여백 + 콘텐츠
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1),  // Top margin
             Constraint::Length(3),  // Header
+            Constraint::Length(1),  // Spacing
             Constraint::Min(10),    // Content
         ])
         .split(app_area);
 
     // 헤더
-    render_header(frame, chunks[0], app);
+    render_header(frame, chunks[1], app);
 
     // 콘텐츠 영역
     match app.current_screen {
-        Screen::Main => {
-            let main_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(8),       // Menu (여유롭게)
-                    Constraint::Length(4),    // Logs (딱 2줄 + 테두리)
-                ])
-                .split(chunks[1]);
-            
-            render_menu_section(frame, main_chunks[0], app, "Choose an action", get_main_menu_items(app));
-            render_recent_logs(frame, main_chunks[1], app);
-        }
-        Screen::WatchPaths => render_watch_paths(frame, chunks[1], app),
-        Screen::ExcludeSettings => render_menu_section(frame, chunks[1], app, "Exclude Settings", get_exclude_menu_items(app)),
-        Screen::ExcludeExtensions => render_list_editor(frame, chunks[1], app, "Exclude Extensions", &app.config.exclude_extensions),
-        Screen::ExcludeDirs => render_list_editor(frame, chunks[1], app, "Exclude Directories", &app.config.exclude_directories),
-        Screen::LogSettings => render_menu_section(frame, chunks[1], app, "Log Settings", get_log_menu_items(app)),
-        Screen::GeneralSettings => render_menu_section(frame, chunks[1], app, "General Settings", get_general_menu_items(app)),
-        Screen::DirPicker => render_dir_picker(frame, chunks[1], app),
+        Screen::Main => render_menu_section(frame, chunks[3], app, "Choose an action", get_main_menu_items(app)),
+        Screen::WatchPaths => render_watch_paths(frame, chunks[3], app),
+        Screen::ExcludeSettings => render_menu_section(frame, chunks[3], app, "Exclude Settings", get_exclude_menu_items(app)),
+        Screen::ExcludeExtensions => render_list_editor(frame, chunks[3], app, "Exclude Extensions", &app.config.exclude_extensions),
+        Screen::ExcludeDirs => render_list_editor(frame, chunks[3], app, "Exclude Directories", &app.config.exclude_directories),
+        Screen::LogSettings => render_menu_section(frame, chunks[3], app, "Log Settings", get_log_menu_items(app)),
+        Screen::GeneralSettings => render_menu_section(frame, chunks[3], app, "General Settings", get_general_menu_items(app)),
+        Screen::DirPicker => render_dir_picker(frame, chunks[3], app),
     }
 
     // 텍스트 입력 모달
     if app.input_mode && app.input_target != Some(super::app::InputTarget::DirPickerSearch) {
-        render_input_modal(frame, app, app_area);
+        render_input_modal(frame, app);
     }
 
     // 삭제 확인 모달
     if app.confirm_delete {
-        render_confirm_modal(frame, app_area);
+        render_confirm_modal(frame);
     }
 }
 
 fn render_header(frame: &mut Frame, area: Rect, _app: &App) {
-    let version = env!("CARGO_PKG_VERSION");
     let title_line = Line::from(vec![
         Span::styled("STICK", Style::default().fg(Color::Cyan).bold()),
         Span::styled(" CLI", Style::default().fg(Color::DarkGray)),
-        Span::styled(format!(" v{}", version), Style::default().fg(Color::Green)),
         Span::styled("   •   ", Style::default().fg(Color::DarkGray)),
         Span::styled("Configuration Manager", Style::default().fg(Color::White).bold()),
     ]);
@@ -90,7 +83,7 @@ fn render_header(frame: &mut Frame, area: Rect, _app: &App) {
 
 fn render_menu_section(frame: &mut Frame, area: Rect, app: &App, title: &str, items: Vec<String>) {
     let block = Block::default()
-        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+        .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::DarkGray));
     
     let inner_area = block.inner(area);
@@ -141,7 +134,7 @@ fn get_main_menu_items(app: &App) -> Vec<String> {
 }
 
 fn get_exclude_menu_items(app: &App) -> Vec<String> {
-    let toggle = |v: bool| if v { "[v]" } else { "[ ]" };
+    let toggle = |v: bool| if v { "[x]" } else { "[ ]" };
     vec![
         format!("{} 숨김 파일 제외 (.으로 시작하는 파일)", toggle(app.config.exclude_hidden)),
         format!("{} 심볼릭 링크 제외", toggle(app.config.exclude_symlinks)),
@@ -161,7 +154,7 @@ fn get_log_menu_items(app: &App) -> Vec<String> {
 }
 
 fn get_general_menu_items(app: &App) -> Vec<String> {
-    let toggle = |v: bool| if v { "[v]" } else { "[ ]" };
+    let toggle = |v: bool| if v { "[x]" } else { "[ ]" };
     vec![
         format!("{} 하위 폴더 재귀 탐색", toggle(app.config.recursive)),
         format!("   감시 스캔 간격: {}초", app.config.scan_interval_seconds),
@@ -174,7 +167,7 @@ fn get_general_menu_items(app: &App) -> Vec<String> {
 
 fn render_watch_paths(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default()
-        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+        .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::DarkGray));
     
     let inner_area = block.inner(area);
@@ -214,7 +207,7 @@ fn render_watch_paths(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_list_editor(frame: &mut Frame, area: Rect, app: &App, title: &str, items_data: &[String]) {
     let block = Block::default()
-        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+        .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::DarkGray));
     
     let inner_area = block.inner(area);
@@ -258,8 +251,8 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     Rect::new(x, y, w, h)
 }
 
-fn render_input_modal(frame: &mut Frame, app: &App, app_area: Rect) {
-    let area = centered_rect(50, 5, app_area);
+fn render_input_modal(frame: &mut Frame, app: &App) {
+    let area = centered_rect(50, 5, frame.area());
     frame.render_widget(Clear, area);
 
     let label = match &app.input_target {
@@ -272,7 +265,7 @@ fn render_input_modal(frame: &mut Frame, app: &App, app_area: Rect) {
         None => "입력:",
     };
 
-    let input_text = format!("{}\n\n> {}▏", label, app.input_buffer);
+    let input_text = format!("{}\\n\\n> {}▏", label, app.input_buffer);
 
     let input = Paragraph::new(input_text)
         .style(Style::default().fg(Color::White))
@@ -287,11 +280,11 @@ fn render_input_modal(frame: &mut Frame, app: &App, app_area: Rect) {
     frame.render_widget(input, area);
 }
 
-fn render_confirm_modal(frame: &mut Frame, app_area: Rect) {
-    let area = centered_rect(40, 6, app_area);
+fn render_confirm_modal(frame: &mut Frame) {
+    let area = centered_rect(40, 6, frame.area());
     frame.render_widget(Clear, area);
 
-    let text = "정말 삭제하시겠습니까?\n\n  [y] 예  [n] 아니오";
+    let text = "정말 삭제하시겠습니까?\\n\\n  [y] 예  [n] 아니오";
     let confirm = Paragraph::new(text)
         .style(Style::default().fg(Color::Red))
         .alignment(Alignment::Center)
@@ -316,7 +309,7 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
     };
     
     let block = Block::default()
-        .borders(Borders::LEFT | Borders::RIGHT | Borders::BOTTOM)
+        .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::DarkGray));
     
     let inner_area = block.inner(area);
@@ -349,7 +342,7 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
         let is_checked = dp.selected_paths.contains(path);
         
         let prefix = if is_selected { "> " } else { "  " };
-        let check = if is_checked { "[v]" } else { "[ ]" };
+        let check = if is_checked { "[x]" } else { "[ ]" };
         
         let name = if path.file_name().map(|n| n == "..").unwrap_or(false) || path == &dp.current_dir.parent().unwrap_or(std::path::Path::new("")) {
             ".. (상위 폴더로)".to_string()
@@ -408,23 +401,9 @@ fn render_dir_picker(frame: &mut Frame, area: Rect, app: &mut App) {
         .style(if is_searching { Style::default().fg(Color::Green) } else { Style::default().fg(Color::DarkGray) });
     frame.render_widget(search_block, layout[6]);
 }
+"""
 
-fn render_recent_logs(frame: &mut Frame, area: Rect, app: &App) {
-    let mut log_lines = Vec::new();
-    if app.recent_logs.is_empty() {
-        log_lines.push(Line::from(Span::styled("최근 변환된 파일이 없습니다.", Style::default().fg(Color::DarkGray))));
-    } else {
-        for log in &app.recent_logs {
-            log_lines.push(Line::from(Span::styled(log.clone(), Style::default().fg(Color::Gray))));
-        }
-    }
+with open("src/tui/ui.rs", "w") as f:
+    f.write(new_ui)
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
-        .title(" Recent Activity ");
-
-    let paragraph = Paragraph::new(log_lines).block(block);
-    frame.render_widget(paragraph, area);
-}
-
+print("Generated src/tui/ui.rs")

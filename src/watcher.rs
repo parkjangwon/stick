@@ -56,6 +56,17 @@ pub fn run_watch_loop(config: &StickConfig) -> Result<()> {
     debug!("🔄 초기 전체 스캔 시작...");
     run_full_scan(config);
 
+    // 오래된 로그 자동 압축 스레드 실행 (매일 1회 확인)
+    let log_dir = config.log_dir();
+    std::thread::spawn(move || {
+        loop {
+            if let Err(e) = crate::logger::compress_old_logs(&log_dir) {
+                tracing::error!("로그 압축 에러: {}", e);
+            }
+            std::thread::sleep(Duration::from_secs(3600 * 24)); // 24시간 대기
+        }
+    });
+
     // 이벤트 루프 (타임아웃 기반 하이브리드)
     let scan_interval = Duration::from_secs(config.scan_interval_seconds);
 

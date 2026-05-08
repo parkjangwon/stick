@@ -112,10 +112,14 @@ pub struct App {
     pub delete_target_index: Option<usize>,
     /// 디렉토리 탐색기 상태
     pub dir_picker: Option<DirPickerState>,
+    /// 최근 변환 로그
+    pub recent_logs: Vec<String>,
 }
 
 impl App {
     pub fn new(config: StickConfig) -> Self {
+        let recent_logs = Self::load_recent_logs(&config);
+
         Self {
             config,
             current_screen: Screen::Main,
@@ -123,12 +127,44 @@ impl App {
             input_mode: false,
             input_buffer: String::new(),
             input_target: None,
-            should_save: true, // 이제 기본적으로 항상 저장하고 나갑니다.
-            status_message: "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string(),
+            should_save: true,
+            status_message: "↑/↓ 이동  •  Enter 선택  •  Esc 취소".to_string(),
             confirm_delete: false,
             delete_target_index: None,
             dir_picker: None,
+            recent_logs,
         }
+    }
+
+    fn load_recent_logs(config: &StickConfig) -> Vec<String> {
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
+        use std::path::Path;
+
+        let log_dir = Path::new(&config.log_path);
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let log_file = log_dir.join(format!("stick.log.{}", today));
+
+        let mut logs = Vec::new();
+        if let Ok(file) = File::open(log_file) {
+            let reader = BufReader::new(file);
+            for line in reader.lines().flatten() {
+                if line.contains("NFD→NFC") || line.contains("[전체스캔]") {
+                    if let Some(idx) = line.find("[") {
+                        logs.push(line[idx..].to_string());
+                    } else {
+                        logs.push(line);
+                    }
+                }
+            }
+        }
+        
+        if logs.len() > 2 {
+            logs = logs.split_off(logs.len() - 2);
+        }
+        
+        logs.reverse(); // 최신순
+        logs
     }
 
     /// 현재 화면의 메뉴 항목 수
@@ -149,25 +185,13 @@ impl App {
     pub fn move_up(&mut self) {
         if self.current_screen == Screen::DirPicker {
             if let Some(dp) = &mut self.dir_picker {
-                if dp.focus == DirPickerFocus::List && dp.selected_index > 0 {
-                    dp.selected_index -= 1;
-                    dp.list_state.select(Some(dp.selected_index));
-                }
-            }
-            return;
-        }
-
-        if self.selected_index > 0 {
-            self.selected_index -= 1;
-        }
-    }
-
-    /// 커서 아래로 이동
-    pub fn move_down(&mut self) {
-        if self.current_screen == Screen::DirPicker {
-            if let Some(dp) = &mut self.dir_picker {
-                if dp.focus == DirPickerFocus::List && dp.selected_index < dp.items.len().saturating_sub(1) {
-                    dp.selected_index += 1;
+                if dp.focus == DirPickerFocus::List {
+                    if dp.items.is_empty() { return; }
+                    if dp.selected_index > 0 {
+                        dp.selected_index -= 1;
+                    } else {
+                        dp.selected_index = dp.items.len().saturating_sub(1);
+                    }
                     dp.list_state.select(Some(dp.selected_index));
                 }
             }
@@ -175,8 +199,39 @@ impl App {
         }
 
         let max = self.menu_len();
-        if max > 0 && self.selected_index < max - 1 {
-            self.selected_index += 1;
+        if max > 0 {
+            if self.selected_index > 0 {
+                self.selected_index -= 1;
+            } else {
+                self.selected_index = max - 1;
+            }
+        }
+    }
+
+    /// 커서 아래로 이동
+    pub fn move_down(&mut self) {
+        if self.current_screen == Screen::DirPicker {
+            if let Some(dp) = &mut self.dir_picker {
+                if dp.focus == DirPickerFocus::List {
+                    if dp.items.is_empty() { return; }
+                    if dp.selected_index < dp.items.len().saturating_sub(1) {
+                        dp.selected_index += 1;
+                    } else {
+                        dp.selected_index = 0;
+                    }
+                    dp.list_state.select(Some(dp.selected_index));
+                }
+            }
+            return;
+        }
+
+        let max = self.menu_len();
+        if max > 0 {
+            if self.selected_index < max - 1 {
+                self.selected_index += 1;
+            } else {
+                self.selected_index = 0;
+            }
         }
     }
 
@@ -247,6 +302,18 @@ impl App {
                 }
                 self.status_message = format!("로그 레벨 변경: {}", self.config.log_level);
             }
+            2 => {
+                let log_dir = self.config.log_dir();
+                match crate::logger::get_dir_size(&log_dir) {
+                    Ok(size) => {
+                        let mb = size as f64 / 1024.0 / 1024.0;
+                        self.status_message = format!("📂 로그 폴더 크기: {:.2} MB", mb);
+                    }
+                    Err(e) => {
+                        self.status_message = format!("❌ 크기 확인 실패: {}", e);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -291,7 +358,7 @@ impl App {
         self.input_mode = true;
         self.input_buffer = prefill.to_string();
         self.input_target = Some(target);
-        self.status_message = "[Enter] 확인  [Esc] 취소".to_string();
+        self.status_message = "Enter 입력 완료  •  Esc 취소".to_string();
     }
 
     /// 'a' 키 처리 (항목 추가)
@@ -300,7 +367,7 @@ impl App {
             Screen::WatchPaths => {
                 self.current_screen = Screen::DirPicker;
                 self.dir_picker = Some(DirPickerState::new());
-                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
+                self.status_message = "↑/↓ 이동  •  Enter 폴더 진입  •  Space 선택/해제  •  Tab 포커스".to_string();
             }
             Screen::ExcludeExtensions => {
                 self.start_input(InputTarget::AddExcludeExtension, ".");
@@ -323,7 +390,7 @@ impl App {
         if has_items {
             self.confirm_delete = true;
             self.delete_target_index = Some(self.selected_index);
-            self.status_message = "정말 삭제하시겠습니까? [y/n]".to_string();
+            self.status_message = "정말 삭제하시겠습니까? (y/n)".to_string();
         }
     }
 
@@ -359,6 +426,13 @@ impl App {
         }
         self.confirm_delete = false;
         self.delete_target_index = None;
+    }
+
+    /// 삭제 취소
+    pub fn confirm_delete_cancel(&mut self) {
+        self.confirm_delete = false;
+        self.delete_target_index = None;
+        self.status_message = "↑/↓ 이동  •  Enter 선택  •  Esc 취소".to_string();
     }
 
     /// 텍스트 입력 제출 (Enter)
@@ -410,7 +484,7 @@ impl App {
             }
             Some(InputTarget::DirPickerSearch) => {
                 // 검색 종료 시 현재 위치 그대로 유지
-                self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
+                self.status_message = "↑/↓ 이동  •  Enter 폴더 진입  •  Space 선택/해제  •  Tab 포커스".to_string();
             }
             None => {}
         }
@@ -427,10 +501,10 @@ impl App {
         self.input_buffer.clear();
         self.input_target = None;
         if was_search {
-            self.status_message = "[↑↓] 이동  [Enter] 폴더 진입  [Space] 선택/해제  [Tab] 포커스".to_string();
+            self.status_message = "↑/↓ 이동  •  Enter 폴더 진입  •  Space 선택/해제  •  Tab 포커스".to_string();
         } else {
             self.status_message =
-                "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string();
+                "↑/↓ 이동  •  Enter 선택  •  Esc 취소".to_string();
         }
     }
 
@@ -462,7 +536,7 @@ impl App {
             }
         }
         self.status_message =
-            "[↑↓] 이동  [Enter] 선택  [q] 저장 후 종료".to_string();
+            "↑/↓ 이동  •  Enter 선택  •  Esc 취소".to_string();
     }
 
     /// DirPicker 공간/토글 처리
@@ -630,6 +704,6 @@ impl App {
         self.input_mode = true;
         self.input_buffer.clear();
         self.input_target = Some(InputTarget::DirPickerSearch);
-        self.status_message = "[↑/↓] 매칭 순환  [Enter] 검색 완료  [Esc] 취소".to_string();
+        self.status_message = "↑/↓ 매칭 순환  •  Enter 검색 완료  •  Esc 취소".to_string();
     }
 }

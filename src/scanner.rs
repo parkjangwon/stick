@@ -118,21 +118,36 @@ pub fn normalize_path(path: &Path, dry_run: bool) -> Result<Option<RenameEntry>>
     }
 
     // NFC로 변환된 새 파일명 생성
-    let nfc_name = to_nfc(file_name);
-    let new_path = path.with_file_name(&nfc_name);
+    let mut nfc_name = to_nfc(file_name);
+    let mut new_path = path.with_file_name(&nfc_name);
 
     // 이름 충돌 방지
     // macOS의 APFS/HFS+는 NFD/NFC를 동일 파일로 취급하므로,
-    // 실제로 다른 파일이 존재하는 경우만 에러로 처리합니다.
+    // 실제로 다른 파일이 존재하는 경우만 충돌로 처리합니다.
     if new_path.exists() {
         // 같은 파일인지 확인 (inode 비교)
         let is_same_file = same_inode(path, &new_path);
         if !is_same_file {
-            return Err(anyhow::anyhow!(
-                "변환 대상 경로에 다른 파일이 이미 존재합니다: {} → {}",
-                path.display(),
-                new_path.display()
-            ));
+            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(&nfc_name);
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            
+            let mut counter = 1;
+            loop {
+                let conflict_name = if ext.is_empty() {
+                    format!("{}_conflict{}", to_nfc(stem), if counter > 1 { format!("_{}", counter) } else { "".to_string() })
+                } else {
+                    format!("{}_conflict{}.{}", to_nfc(stem), if counter > 1 { format!("_{}", counter) } else { "".to_string() }, ext)
+                };
+                
+                let candidate_path = path.with_file_name(&conflict_name);
+                if !candidate_path.exists() {
+                    nfc_name = conflict_name;
+                    new_path = candidate_path;
+                    break;
+                }
+                counter += 1;
+            }
+            tracing::warn!("파일 이름 충돌 감지! 충돌 방지명 적용: {}", new_path.display());
         }
         // 같은 파일이면 rename 진행 (OS가 안전하게 처리)
     }
@@ -262,6 +277,7 @@ pub fn scan_directory(path: &Path, config: &StickConfig, dry_run: bool) -> Resul
     // 이렇게 하면 하위 → 상위 순서로 처리됩니다.
     let mut entries: Vec<_> = walker
         .into_iter()
+        .filter_entry(|e| !should_exclude(e.path(), config))
         .filter_map(|entry| entry.ok())
         .collect();
 

@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         }
 
         // ── stick config ─────────────────────────────────────────────
-        Commands::Config => {
+        Commands::Tui => {
             tui::run_config_tui()?;
         }
 
@@ -107,12 +107,17 @@ fn main() -> Result<()> {
                         eprintln!("⚠️  경로 없음: {}", watch_path);
                         continue;
                     }
+                    use std::io::Write;
+                    print!("  📂 스캔 중: {} ... ", watch_path);
+                    std::io::stdout().flush().unwrap_or(());
+                    
                     match scanner::scan_directory(path, &config, true) {
                         Ok(result) => {
                             total_targets += result.renamed.len();
+                            println!("완료 ({}건 찾음)", result.renamed.len());
                             for entry in &result.renamed {
                                 println!(
-                                    "  {} → {}",
+                                    "    - {} → {}",
                                     entry.original_name, entry.new_name
                                 );
                             }
@@ -152,12 +157,15 @@ fn main() -> Result<()> {
                     continue;
                 }
 
-                println!("\n📂 스캔: {}", watch_path);
+                use std::io::Write;
+                print!("\n📂 스캔 중: {} ... ", watch_path);
+                std::io::stdout().flush().unwrap_or(());
 
                 match scanner::scan_directory(path, &config, dry_run) {
                     Ok(result) => {
                         total_renamed += result.renamed.len();
                         total_errors += result.errors.len();
+                        println!("완료 ({}건 변환/예정, {}건 에러)", result.renamed.len(), result.errors.len());
 
                         for entry in &result.renamed {
                             let action = if dry_run { "변환 예정" } else { "변환 완료" };

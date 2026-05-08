@@ -36,7 +36,7 @@ pub enum Commands {
     Status,
 
     /// TUI 설정 메뉴 열기
-    Config,
+    Tui,
 
     /// 현재 설치된 stick 버전 정보 출력
     Version,

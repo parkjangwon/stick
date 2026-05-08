@@ -1,6 +1,6 @@
 [package]
 name = "stick"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "macOS/Linux 한글 파일명 NFC 정규화 도구"
 authors = ["pjw"]
@@ -49,6 +49,7 @@ walkdir = "2"
 
 # 틸드(~) 경로 확장
 shellexpand = "3"
+flate2 = "1.1.9"
 
 [profile.release]
 opt-level = 3
