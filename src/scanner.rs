@@ -74,6 +74,17 @@ fn same_inode(path_a: &Path, path_b: &Path) -> bool {
     meta_a.dev() == meta_b.dev() && meta_a.ino() == meta_b.ino()
 }
 
+/// Windows/기타 OS용 두 경로의 동일성 판단
+/// canonicalize를 통해 물리적 절대 경로로 가공하여 정밀 비교합니다.
+#[cfg(not(unix))]
+fn same_inode(path_a: &Path, path_b: &Path) -> bool {
+    if let (Ok(canon_a), Ok(canon_b)) = (fs::canonicalize(path_a), fs::canonicalize(path_b)) {
+        canon_a == canon_b
+    } else {
+        false
+    }
+}
+
 /// 디스크에 저장된 실제 파일명을 반환합니다.
 /// FSEvents는 NFC 파일이라도 NFD 경로로 이벤트를 발생시킬 수 있으므로, inode 비교를 통해 실제 이름을 찾습니다.
 #[cfg(unix)]

@@ -35,14 +35,8 @@ dirs = "5"
 # 날짜/시간
 chrono = "0.4"
 
-# 데몬화 (Unix 전용)
-daemonize = "0.5"
-
 # 에러 처리
 anyhow = "1"
-
-# Unix 시그널 처리
-nix = { version = "0.29", features = ["signal", "process"] }
 
 # 워킹 디렉토리 탐색
 walkdir = "2"
@@ -50,6 +44,12 @@ walkdir = "2"
 # 틸드(~) 경로 확장
 shellexpand = "3"
 flate2 = "1.1.9"
+
+[target.'cfg(unix)'.dependencies]
+# 데몬화 (Unix 전용)
+daemonize = "0.5"
+# Unix 시그널 처리
+nix = { version = "0.29", features = ["signal", "process"] }
 
 [profile.release]
 opt-level = 3

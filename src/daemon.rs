@@ -32,9 +32,17 @@ fn detect_service_manager() -> Result<ServiceManager> {
                 "systemd를 찾을 수 없습니다. 현재 Linux 환경에서 systemd가 필요합니다."
             ))
         }
+    } else if cfg!(target_os = "windows") {
+        Err(anyhow::anyhow!(
+            "💡 Windows 환경은 파일명이 항상 자소 결합(NFC) 형태로 자동 저장되므로 실시간 감시 백그라운드 데몬이 필요하지 않습니다.\n\n\
+             맥 사용자가 공유하여 이미 깨진 파일들을 터치 한 번에 깔끔히 치료하려면 아래 명령어를 사용해보세요!\n\
+             👉 stick scan\n\n\
+             스캔 대상 폴더 및 규칙을 편리하게 추가하려면:\n\
+             👉 stick config"
+        ))
     } else {
         Err(anyhow::anyhow!(
-            "지원하지 않는 운영체제입니다. macOS 또는 Linux만 지원합니다."
+            "지원하지 않는 운영체제입니다. macOS, Linux, Windows 환경에서 사용할 수 있습니다."
         ))
     }
 }

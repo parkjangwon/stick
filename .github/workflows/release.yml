@@ -10,38 +10,64 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build for ${{ matrix.target }}
-    runs-on: macos-latest
+    name: Build for ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        target: [x86_64-apple-darwin, aarch64-apple-darwin]
         include:
-          - target: x86_64-apple-darwin
-            binary_name: stick-darwin-x86_64
-          - target: aarch64-apple-darwin
-            binary_name: stick-darwin-arm64
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: darwin
+            arch: x86_64
+            runner: macos-latest
+            target: x86_64-apple-darwin
+          - os: darwin
+            arch: arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows
+            arch: arm64
+            runner: windows-latest
+            target: aarch64-pc-windows-msvc
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux musl)
+        if: matrix.os == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename binary for upload
+      - name: Rename binary
+        shell: bash
         run: |
-          mv target/${{ matrix.target }}/release/stick ${{ matrix.binary_name }}
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            cp target/${{ matrix.target }}/release/stick.exe dist/stick-${{ matrix.os }}-${{ matrix.arch }}.exe
+          else
+            cp target/${{ matrix.target }}/release/stick dist/stick-${{ matrix.os }}-${{ matrix.arch }}
+          fi
 
-      - name: Upload to Release
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.binary_name }}
-          generate_release_notes: true
+          files: |
+            dist/stick-${{ matrix.os }}-${{ matrix.arch }}
+            dist/stick-${{ matrix.os }}-${{ matrix.arch }}.exe
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
